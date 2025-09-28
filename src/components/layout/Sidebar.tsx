@@ -8,7 +8,8 @@ import {
   Buildings, 
   Phone, 
   X,
-  Bell
+  Bell,
+  ChatCircle
 } from '@phosphor-icons/react'
 import type { Page } from '../../App'
 
@@ -23,6 +24,7 @@ const navigation = [
   { id: 'dashboard' as const, name: 'Dashboard', icon: SquaresFour },
   { id: 'patients' as const, name: 'Patients', icon: Users },
   { id: 'appointments' as const, name: 'Appointments', icon: Calendar, badge: '3' },
+  { id: 'messages' as const, name: 'Messages', icon: ChatCircle, badge: '5' },
   { id: 'nphies' as const, name: 'NPHIES Portal', icon: Buildings },
   { id: 'telemedicine' as const, name: 'Telemedicine', icon: Phone, badge: '1' },
 ]

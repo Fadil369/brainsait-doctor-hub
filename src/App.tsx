@@ -9,9 +9,10 @@ import { PatientDetails } from './components/pages/PatientDetails'
 import { Appointments } from './components/pages/Appointments'
 import { NPHIESPortal } from './components/pages/NPHIESPortal'
 import { Telemedicine } from './components/pages/Telemedicine'
+import { Messages } from './components/pages/Messages'
 import { useIsMobile } from './hooks/use-mobile'
 
-export type Page = 'dashboard' | 'patients' | 'patient-details' | 'appointments' | 'nphies' | 'telemedicine'
+export type Page = 'dashboard' | 'patients' | 'patient-details' | 'appointments' | 'nphies' | 'telemedicine' | 'messages'
 
 function App() {
   const [currentPage, setCurrentPage] = useKV<Page>('current-page', 'dashboard')
@@ -38,6 +39,8 @@ function App() {
         return <NPHIESPortal />
       case 'telemedicine':
         return <Telemedicine />
+      case 'messages':
+        return <Messages />
       default:
         return <Dashboard onNavigate={setCurrentPage} onPatientSelect={handlePatientSelect} />
     }
