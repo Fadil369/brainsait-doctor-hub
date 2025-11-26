@@ -10,6 +10,7 @@ import { useIsMobile } from './hooks/use-mobile'
 import { PageLoader } from './components/ui/loading-skeletons'
 import { DrsLincWidget } from './components/drslinc/DrsLincWidget'
 import { configValidator } from './lib/config-validator'
+import { integrationManager } from './lib/integration-manager'
 import './i18n'
 
 // Initialize and validate configuration on app start
@@ -23,6 +24,11 @@ try {
     console.info('🔧 Running in DEVELOPMENT mode');
     console.warn('⚠️  Some security features are mocked for development');
   }
+
+  // Initialize integrations asynchronously
+  integrationManager.initialize().catch(error => {
+    console.error('Failed to initialize integrations:', error);
+  });
 } catch (error) {
   console.error('❌ Configuration validation failed:', error);
   if (configValidator.isProduction()) {
