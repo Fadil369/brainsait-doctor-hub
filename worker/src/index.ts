@@ -4,6 +4,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Context, Next } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
@@ -73,8 +74,6 @@ app.use('*', async (c, next) => {
 });
 
 // API Key authentication middleware
-import type { Context, Next } from 'hono';
-
 const requireApiKey = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
   const apiKey = c.req.header('X-API-Key');
   const envApiKey = c.env.API_KEY;
