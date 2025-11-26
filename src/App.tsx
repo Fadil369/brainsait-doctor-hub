@@ -5,6 +5,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { Header } from './components/layout/Header'
 import { useIsMobile } from './hooks/use-mobile'
 import { PageLoader } from './components/ui/loading-skeletons'
+import { DrsLincWidget } from './components/drslinc/DrsLincWidget'
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./components/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -147,6 +148,12 @@ function App() {
           duration: 4000,
           className: 'shadow-lg',
         }}
+      />
+
+      <DrsLincWidget
+        selectedPatientId={selectedPatientId ?? null}
+        currentPage={currentPage || 'dashboard'}
+        onNavigate={handleNavigate}
       />
     </div>
   )
