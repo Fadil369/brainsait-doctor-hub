@@ -54,6 +54,20 @@ A comprehensive medical portal enabling healthcare professionals to manage patie
 - **Progression**: Input patient data → AI analysis → Review recommendations → Accept/modify suggestions
 - **Success criteria**: Relevant insights provided, medical codes suggested accurately, predictions align with clinical outcomes
 
+### DrsLinc Conversational Copilot
+- **Functionality**: Persistent, medically-aware chat window (DrsLinc) that surfaces context from the active patient chart, allows physicians to ask clinical, administrative, or coding questions, and can draft documentation or code snippets by orchestrating OpenAI ChatGPT, GitHub Copilot, and Claude models.
+- **Purpose**: Provide real-time cognitive support, accelerate charting, and act as a safety net by cross-checking treatment plans against evidence-based guidelines.
+- **Trigger**: Available from every major view (dashboard dock, patient profile, telemedicine, NPHIES flows) with keyboard shortcut (`Cmd/Ctrl + J`) and auto-suggested prompts when high-risk vitals or missing chart elements are detected.
+- **Progression**: Invoke DrsLinc → Context auto-injected (patient demographics, vitals, meds, labs, encounter goal) → Physician query or accepts suggested task → DrsLinc selects optimal LLM (ChatGPT for reasoning, Claude for summarization, Copilot for code/automation) → Response with citations and quick actions (insert into note, create order, launch workflow) → Physician approves/edits → Audit log updated.
+- **Success criteria**: Responses <1.5s for cached knowledge and <4s for federated LLM calls, ≥95% context accuracy, inline citations for every clinical recommendation, one-click insertion success, full audit trail stored for 7 years.
+
+**DrsLinc Integration & Safeguards**
+- **Context Controls**: Only minimum necessary PHI shared with LLMs, redaction rules configurable per facility, and visual indicator showing what context was transmitted.
+- **Model Routing**: Policy engine chooses between ChatGPT, Claude, or Copilot based on task classification (diagnostic reasoning, summarization, automation). Hard failover to local deterministic templates when external APIs unavailable.
+- **Clinical Guardrails**: Reinforcement prompts enforce "assist-not-decide" behavior, double-confirmation required for medication changes, and automatic alerting if suggestions conflict with guidelines or allergies.
+- **User Experience**: Pin/unpin mini-panel, dark-mode aware, drag-to-resize transcript, downloadable conversation transcripts appended to encounter note.
+- **Observability**: Token usage dashboards, satisfaction rating per response, and drift detection when clinicians frequently override recommendations.
+
 ## Edge Case Handling
 
 - **Network Connectivity**: Offline mode for critical patient data access and sync when reconnected
@@ -61,6 +75,8 @@ A comprehensive medical portal enabling healthcare professionals to manage patie
 - **Data Conflicts**: Merge resolution interface when multiple users edit same patient record
 - **System Downtime**: Graceful degradation with essential functions available and clear status messaging
 - **Privacy Violations**: Automatic session timeout and suspicious activity detection with immediate lockout
+- **LLM Unavailability**: DrsLinc falls back to cached care pathways and local rules engine when OpenAI/GitHub/Claude endpoints fail, while queueing unanswered prompts for later replay with clinician approval.
+- **Context Leakage**: Real-time PHI redaction monitor halts outbound requests when disallowed data classes are detected, alerting compliance teams.
 
 ## Design Direction
 
@@ -107,6 +123,7 @@ Subtle, purposeful animations that guide attention and provide feedback without 
   - Forms: Form, Input, Select, Calendar for appointments
   - Dialogs: Alert Dialog for confirmations, Sheet for patient details
   - Navigation: Sidebar for main navigation, Breadcrumb for deep navigation
+- **Conversational UI**: DrsLinc docked chat panel, inline suggestion chips, model source indicators, and response cards with action buttons (insert note, create task, open order set).
 - **Customizations**: Medical chart components, NPHIES-specific form layouts, telemedicine video components
 - **States**: Loading skeletons for patient data, error boundaries for critical failures, success confirmations for medical actions
 - **Icon Selection**: Phosphor icons medical set - Stethoscope, Calendar, User, Phone, Video for intuitive recognition

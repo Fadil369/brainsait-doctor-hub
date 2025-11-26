@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { useKV } from '@github/spark/hooks'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,18 +12,9 @@ import {
   Warning,
   CheckCircle
 } from '@phosphor-icons/react'
-
-interface Patient {
-  id: string
-  name: string
-  age: number
-  gender: string
-  phone: string
-  lastVisit: string
-  condition: string
-  status: 'stable' | 'critical' | 'improving' | 'monitoring'
-  avatar?: string
-}
+import { usePatients } from '@/db'
+import { PatientListSkeleton } from '@/components/ui/loading-skeletons'
+import type { Patient } from '@/types'
 
 interface PatientListProps {
   onPatientSelect: (patientId: string) => void
@@ -33,74 +23,32 @@ interface PatientListProps {
 export function PatientList({ onPatientSelect }: PatientListProps) {
   const [searchTerm, setSearchTerm] = useState('')
   
-  const [patients] = useKV<Patient[]>('patients-list', [
-    {
-      id: '1',
-      name: 'Ahmed Al-Rashid',
-      age: 45,
-      gender: 'Male',
-      phone: '+966 50 123 4567',
-      lastVisit: '2024-01-15',
-      condition: 'Hypertension',
-      status: 'stable'
-    },
-    {
-      id: '2',
-      name: 'Sara Mohammed',
-      age: 32,
-      gender: 'Female',
-      phone: '+966 55 987 6543',
-      lastVisit: '2024-01-14',
-      condition: 'Diabetes Type 2',
-      status: 'monitoring'
-    },
-    {
-      id: '3',
-      name: 'Omar Hassan',
-      age: 28,
-      gender: 'Male',
-      phone: '+966 50 555 1234',
-      lastVisit: '2024-01-13',
-      condition: 'Asthma',
-      status: 'improving'
-    },
-    {
-      id: '4',
-      name: 'Fatima Ali',
-      age: 38,
-      gender: 'Female',
-      phone: '+966 54 321 9876',
-      lastVisit: '2024-01-12',
-      condition: 'Heart Disease',
-      status: 'critical'
-    },
-    {
-      id: '5',
-      name: 'Khalid Bin Salman',
-      age: 52,
-      gender: 'Male',
-      phone: '+966 56 789 0123',
-      lastVisit: '2024-01-11',
-      condition: 'Arthritis',
-      status: 'stable'
-    },
-    {
-      id: '6',
-      name: 'Noura Abdullah',
-      age: 29,
-      gender: 'Female',
-      phone: '+966 50 246 8135',
-      lastVisit: '2024-01-10',
-      condition: 'Migraine',
-      status: 'improving'
-    }
-  ])
+  // Use the database hook with search filter
+  const { 
+    data: patients, 
+    isLoading, 
+    total,
+    getStatistics 
+  } = usePatients({
+    search: searchTerm,
+    orderBy: 'name',
+  })
 
-  const filteredPatients = patients?.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.condition.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phone.includes(searchTerm)
-  ) || []
+  // Get statistics for the summary cards
+  const stats = useMemo(() => {
+    return {
+      total: patients.length,
+      critical: patients.filter(p => p.status === 'critical').length,
+      stable: patients.filter(p => p.status === 'stable').length,
+      monitoring: patients.filter(p => p.status === 'monitoring').length,
+      improving: patients.filter(p => p.status === 'improving').length,
+    }
+  }, [patients])
+
+  // Get primary condition from conditions array
+  const getPrimaryCondition = (patient: Patient) => {
+    return patient.conditions?.[0] || 'No condition recorded'
+  }
 
   const getStatusIcon = (status: Patient['status']) => {
     switch (status) {
@@ -112,12 +60,14 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
         return <CheckCircle size={16} className="text-primary" />
       case 'monitoring':
         return <div className="w-4 h-4 rounded-full bg-accent animate-pulse" />
+      case 'discharged':
+        return <CheckCircle size={16} className="text-muted-foreground" />
       default:
         return null
     }
   }
 
-  const getStatusColor = (status: Patient['status']) => {
+  const getStatusColor = (status: Patient['status']): "destructive" | "default" | "secondary" | "outline" => {
     switch (status) {
       case 'critical':
         return 'destructive'
@@ -126,10 +76,16 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
       case 'improving':
         return 'secondary'
       case 'monitoring':
+      case 'discharged':
         return 'outline'
       default:
         return 'default'
     }
+  }
+
+  // Show loading skeleton while data loads
+  if (isLoading) {
+    return <PatientListSkeleton />
   }
 
   return (
@@ -167,7 +123,7 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            {filteredPatients.map((patient) => (
+            {patients.map((patient) => (
               <Card 
                 key={patient.id}
                 className="cursor-pointer hover:shadow-md transition-shadow"
@@ -188,7 +144,7 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
                           {getStatusIcon(patient.status)}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {patient.age} years • {patient.gender}
+                          {patient.age} years • {patient.gender === 'male' ? 'Male' : 'Female'}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {patient.phone}
@@ -199,8 +155,11 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
                     <div className="flex items-center space-x-4">
                       <div className="text-right space-y-1">
                         <Badge variant={getStatusColor(patient.status)} className="text-xs">
-                          {patient.condition}
+                          {getPrimaryCondition(patient)}
                         </Badge>
+                        <p className="text-xs text-muted-foreground">
+                          MRN: {patient.mrn}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           Last visit: {new Date(patient.lastVisit).toLocaleDateString()}
                         </p>
@@ -212,11 +171,11 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
                       </div>
 
                       <div className="flex flex-col space-y-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); }}>
                           <Phone size={14} className="mr-1" />
                           Call
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); }}>
                           <VideoCamera size={14} className="mr-1" />
                           Video
                         </Button>
@@ -227,9 +186,11 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
               </Card>
             ))}
 
-            {filteredPatients.length === 0 && (
+            {patients.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">No patients found matching your search.</p>
+                <p className="text-muted-foreground">
+                  {searchTerm ? 'No patients found matching your search.' : 'No patients registered yet.'}
+                </p>
               </div>
             )}
           </div>
@@ -244,18 +205,24 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
           <CardContent className="space-y-4">
             <div className="flex justify-between">
               <span className="text-sm">Total Patients</span>
-              <span className="font-medium">{patients?.length || 0}</span>
+              <span className="font-medium">{stats.total}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Critical Cases</span>
               <span className="font-medium text-destructive">
-                {patients?.filter(p => p.status === 'critical').length || 0}
+                {stats.critical}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Stable Patients</span>
               <span className="font-medium text-success">
-                {patients?.filter(p => p.status === 'stable').length || 0}
+                {stats.stable}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm">Under Monitoring</span>
+              <span className="font-medium text-amber-500">
+                {stats.monitoring}
               </span>
             </div>
           </CardContent>

@@ -1,4 +1,3 @@
-import { useKV } from '@github/spark/hooks'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +12,8 @@ import {
   CheckCircle,
   Plus
 } from '@phosphor-icons/react'
+import { useDashboardStats, useAppointments, useNotifications } from '@/db'
+import { DashboardStatsSkeleton } from '@/components/ui/loading-skeletons'
 import type { Page } from '../../App'
 
 interface DashboardProps {
@@ -20,50 +21,48 @@ interface DashboardProps {
   onPatientSelect: (patientId: string) => void
 }
 
-interface Appointment {
-  id: string
-  time: string
-  patient: string
-  type: string
-  status: string
-}
+// Helper function to get relative time
+function getRelativeTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
 
-interface Stats {
-  totalPatients: number
-  todayAppointments: number
-  pendingReports: number
-  urgentCases: number
-}
-
-interface Activity {
-  id: string
-  type: string
-  message: string
-  time: string
-  urgent: boolean
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} min ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
 }
 
 export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
-  const [todayAppointments] = useKV<Appointment[]>('today-appointments', [
-    { id: '1', time: '09:00', patient: 'Ahmed Al-Rashid', type: 'Consultation', status: 'confirmed' },
-    { id: '2', time: '10:30', patient: 'Sara Mohammed', type: 'Follow-up', status: 'pending' },
-    { id: '3', time: '14:00', patient: 'Omar Hassan', type: 'Telemedicine', status: 'confirmed' },
-    { id: '4', time: '15:30', patient: 'Fatima Ali', type: 'Consultation', status: 'urgent' }
-  ])
-
-  const [quickStats] = useKV<Stats>('dashboard-stats', {
-    totalPatients: 342,
-    todayAppointments: 8,
-    pendingReports: 5,
-    urgentCases: 2
+  // Use database hooks for real-time data
+  const { stats, isLoading: statsLoading } = useDashboardStats()
+  const { data: appointments, getUpcoming } = useAppointments({
+    date: new Date().toISOString().split('T')[0],
+  })
+  const { data: notifications, unreadCount } = useNotifications({
+    unreadOnly: true,
+    limit: 5,
   })
 
-  const [recentActivities] = useKV<Activity[]>('recent-activities', [
-    { id: '1', type: 'report', message: 'Lab results for Ahmed Al-Rashid', time: '2 min ago', urgent: false },
-    { id: '2', type: 'appointment', message: 'New appointment scheduled', time: '15 min ago', urgent: false },
-    { id: '3', type: 'urgent', message: 'Urgent: Patient vital signs alert', time: '32 min ago', urgent: true },
-    { id: '4', type: 'message', message: 'Colleague consultation request', time: '1 hour ago', urgent: false }
-  ])
+  // Get upcoming appointments for display
+  const upcomingAppointments = getUpcoming(4)
+
+  // Map notifications to activities format
+  const recentActivities = notifications.slice(0, 4).map(n => ({
+    id: n.id,
+    type: n.type,
+    message: n.title,
+    time: getRelativeTime(n.createdAt),
+    urgent: n.priority === 'urgent' || n.priority === 'high',
+  }))
+
+  // Show skeleton while loading
+  if (statsLoading) {
+    return <DashboardStatsSkeleton />
+  }
 
   return (
     <div className="space-y-6">
@@ -87,9 +86,9 @@ export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
             <Users size={16} className="text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{quickStats?.totalPatients || 0}</div>
+            <div className="text-2xl font-bold">{stats.totalPatients}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-success">+12%</span> from last month
+              <span className="text-destructive">{stats.criticalPatients} critical</span>
             </p>
           </CardContent>
         </Card>
@@ -100,35 +99,35 @@ export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
             <Calendar size={16} className="text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{quickStats?.todayAppointments || 0}</div>
+            <div className="text-2xl font-bold">{stats.todayAppointments}</div>
             <p className="text-xs text-muted-foreground">
-              4 completed, 4 remaining
+              {stats.completedAppointments} completed, {stats.todayAppointments - stats.completedAppointments} remaining
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reports</CardTitle>
+            <CardTitle className="text-sm font-medium">Pending Claims</CardTitle>
             <Clock size={16} className="text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{quickStats?.pendingReports || 0}</div>
+            <div className="text-2xl font-bold">{stats.pendingClaims}</div>
             <p className="text-xs text-muted-foreground">
-              2 due today
+              SAR {stats.totalClaimAmount.toLocaleString()} total
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Urgent Cases</CardTitle>
+            <CardTitle className="text-sm font-medium">Notifications</CardTitle>
             <Warning size={16} className="text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">{quickStats?.urgentCases || 0}</div>
+            <div className="text-2xl font-bold text-accent">{stats.unreadNotifications}</div>
             <p className="text-xs text-muted-foreground">
-              Requires immediate attention
+              Unread alerts
             </p>
           </CardContent>
         </Card>
@@ -145,34 +144,41 @@ export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {todayAppointments?.map((appointment) => (
+            {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
               <div 
                 key={appointment.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => onPatientSelect('patient-' + appointment.id)}
+                onClick={() => onPatientSelect(appointment.patientId)}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <div className={`w-2 h-2 rounded-full ${
+                    appointment.status === 'in-progress' ? 'bg-success animate-pulse' :
+                    appointment.status === 'confirmed' ? 'bg-primary' : 'bg-muted-foreground'
+                  }`} />
                   <div>
                     <p className="font-medium">{appointment.time}</p>
-                    <p className="text-sm text-muted-foreground">{appointment.patient}</p>
+                    <p className="text-sm text-muted-foreground">{appointment.patientName}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Badge 
                     variant={
-                      appointment.status === 'urgent' ? 'destructive' :
+                      appointment.type === 'emergency' ? 'destructive' :
                       appointment.status === 'confirmed' ? 'default' : 'secondary'
                     }
                   >
                     {appointment.type}
                   </Badge>
-                  {appointment.type === 'Telemedicine' && (
+                  {appointment.type === 'telemedicine' && (
                     <Phone size={16} className="text-primary" />
                   )}
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No appointments scheduled for today
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -181,7 +187,7 @@ export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentActivities?.map((activity) => (
+            {recentActivities.length > 0 ? recentActivities.map((activity) => (
               <div key={activity.id} className="flex items-start space-x-3">
                 <div className={`w-2 h-2 rounded-full mt-2 ${
                   activity.urgent ? 'bg-accent animate-pulse' : 'bg-muted-foreground'
@@ -194,7 +200,11 @@ export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
                 </div>
                 {activity.urgent && <Warning size={16} className="text-accent" />}
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No recent activity
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
