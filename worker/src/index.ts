@@ -14,6 +14,16 @@ import { auditRouter } from './routes/audit';
 import { healthRouter } from './routes/health';
 import { patientsRouter } from './routes/patients';
 
+// User type for session
+export interface SessionUser {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  role: 'doctor' | 'nurse' | 'admin' | 'specialist';
+  permissions: string[];
+}
+
 // Environment bindings interface
 export interface Env {
   PATIENTS_KV: KVNamespace;
@@ -26,8 +36,14 @@ export interface Env {
   ENVIRONMENT: string;
 }
 
-// Create Hono app
-const app = new Hono<{ Bindings: Env }>();
+// Variables stored in context
+export interface Variables {
+  user: SessionUser;
+  requestId: string;
+}
+
+// Create Hono app with typed bindings and variables
+const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // Middleware
 app.use('*', logger());
@@ -57,7 +73,9 @@ app.use('*', async (c, next) => {
 });
 
 // API Key authentication middleware
-const requireApiKey = async (c: any, next: any) => {
+import type { Context, Next } from 'hono';
+
+const requireApiKey = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
   const apiKey = c.req.header('X-API-Key');
   const envApiKey = c.env.API_KEY;
 

@@ -137,8 +137,8 @@ function AppContent() {
     }
   }, [navigate, isMobile])
 
-  // Show loading screen during auth initialization
-  if (isLoading || (!isAuthenticated && !isLoginSuccessful)) {
+  // Show loading screen during auth initialization only
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
