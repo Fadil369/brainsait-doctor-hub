@@ -20,9 +20,11 @@ import {
   Question,
   Moon,
   Sun,
-  Command
+  Command,
+  Globe
 } from '@phosphor-icons/react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -31,6 +33,12 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
   const [searchFocused, setSearchFocused] = useState(false)
+  const { i18n } = useTranslation()
+  
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'en' ? 'ar' : 'en'
+    i18n.changeLanguage(newLang)
+  }
   
   return (
     <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 px-4 py-3 md:px-6 safe-area-top">
@@ -179,6 +187,17 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
           </DropdownMenu>
           
           <div className="hidden md:block h-6 w-px bg-border mx-1" />
+          
+          {/* Language Switcher */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="hover:bg-primary/10"
+            onClick={toggleLanguage}
+            aria-label={`Switch to ${i18n.language === 'en' ? 'Arabic' : 'English'}`}
+          >
+            <Globe size={20} />
+          </Button>
           
           {/* User Profile Dropdown */}
           <DropdownMenu>

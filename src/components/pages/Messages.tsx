@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,7 @@ import {
 import { PatientFileSharer } from '../messaging/PatientFileSharer'
 import { ConsultationRequest } from '../messaging/ConsultationRequest'
 import { toast } from 'sonner'
+import { useDoctorDirectory } from "@/hooks/useDoctorDirectory"
 
 export interface Doctor {
   id: string
@@ -231,6 +233,30 @@ export function Messages() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showNewConsultation, setShowNewConsultation] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
+  const conversationRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+
+  const {
+    doctors: directoryDoctors,
+    loading: doctorDirectoryLoading,
+    error: doctorDirectoryError
+  } = useDoctorDirectory({ limit: 200 })
+
+  const availableDoctors = useMemo<Doctor[]>(() => {
+    if (!directoryDoctors.length) {
+      return mockDoctors
+    }
+
+    const existingIds = new Set(mockDoctors.map((doctor) => doctor.id))
+    const normalized = directoryDoctors.map((doctor) => ({
+      id: doctor.id,
+      name: doctor.name,
+      specialty: doctor.specialty || 'General Practice',
+      isOnline: false,
+      lastSeen: 'Directory import'
+    }))
+    const deduplicated = normalized.filter((doctor) => !existingIds.has(doctor.id))
+    return [...mockDoctors, ...deduplicated]
+  }, [directoryDoctors])
 
   const selectedConversation = conversations?.find(c => c.id === selectedConversationId)
   const conversationMessages = selectedConversationId ? (messages?.[selectedConversationId] || []) : []
@@ -239,7 +265,7 @@ export function Messages() {
     const matchesSearch = !searchQuery || 
       conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.participants.some(id => {
-        const doctor = mockDoctors.find(d => d.id === id)
+        const doctor = availableDoctors.find(d => d.id === id)
         return doctor?.name.toLowerCase().includes(searchQuery.toLowerCase())
       })
 
@@ -250,6 +276,42 @@ export function Messages() {
 
     return matchesSearch && matchesTab
   })
+
+  const focusConversationAtIndex = (index: number) => {
+    const target = filteredConversations[index]
+    if (!target) return
+    conversationRefs.current[target.id]?.focus()
+  }
+
+  const handleConversationKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    index: number,
+    conversationId: string
+  ) => {
+    if (filteredConversations.length === 0) return
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const delta = event.key === 'ArrowDown' ? 1 : -1
+      const nextIndex = (index + delta + filteredConversations.length) % filteredConversations.length
+      focusConversationAtIndex(nextIndex)
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault()
+      focusConversationAtIndex(0)
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault()
+      focusConversationAtIndex(filteredConversations.length - 1)
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      setSelectedConversationId(conversationId)
+    }
+  }
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedConversationId) return
@@ -279,8 +341,19 @@ export function Messages() {
     toast.success('Message sent')
   }
 
+  const handleComposerKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const handleAttachmentClick = () => {
+    toast.info('Secure file attachments will be available soon.')
+  }
+
   const handleStartConsultation = (consultationType: 'second-opinion' | 'referral' | 'general', doctorId: string, patientId?: string) => {
-    const doctor = mockDoctors.find(d => d.id === doctorId)
+    const doctor = availableDoctors.find(d => d.id === doctorId)
     if (!doctor) return
 
     const conversation: Conversation = {
@@ -316,7 +389,7 @@ export function Messages() {
   }
 
   const getDoctorName = (doctorId: string) => {
-    return mockDoctors.find(d => d.id === doctorId)?.name || 'Unknown Doctor'
+    return availableDoctors.find(d => d.id === doctorId)?.name || 'Unknown Doctor'
   }
 
   return (
@@ -340,7 +413,12 @@ export function Messages() {
                   <DialogHeader>
                     <DialogTitle>Start New Consultation</DialogTitle>
                   </DialogHeader>
-                  <NewConsultationForm onStart={handleStartConsultation} />
+                  <NewConsultationForm
+                    onStart={handleStartConsultation}
+                    doctors={availableDoctors}
+                    loading={doctorDirectoryLoading}
+                    error={doctorDirectoryError}
+                  />
                 </DialogContent>
               </Dialog>
             </div>
@@ -367,14 +445,20 @@ export function Messages() {
 
           <CardContent className="p-0">
             <ScrollArea className="h-[calc(100vh-280px)]">
-              <div className="space-y-1 p-3">
-                {filteredConversations.map((conversation) => (
-                  <div
+              <div className="space-y-1 p-3" role="listbox" aria-label="Conversations">
+                {filteredConversations.map((conversation, index) => (
+                  <button
                     key={conversation.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted/50 ${
-                      selectedConversationId === conversation.id ? 'bg-primary/10' : ''
-                    }`}
+                    type="button"
+                    ref={(node) => { conversationRefs.current[conversation.id] = node }}
+                    role="option"
+                    aria-selected={selectedConversationId === conversation.id ? 'true' : undefined}
+                    aria-label={`Conversation with ${conversation.title || getDoctorName(conversation.participants.find(p => p !== 'current-user') || '')}`}
+                    className={`w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                      selectedConversationId === conversation.id ? 'bg-primary/10' : 'bg-transparent'
+                    } hover:bg-muted/50`}
                     onClick={() => setSelectedConversationId(conversation.id)}
+                    onKeyDown={(event) => handleConversationKeyDown(event, index, conversation.id)}
                   >
                     <div className="flex items-start gap-3">
                       <div className="relative">
@@ -383,8 +467,8 @@ export function Messages() {
                             {conversation.type === 'group' ? <Users className="h-5 w-5" /> : <User className="h-5 w-5" />}
                           </AvatarFallback>
                         </Avatar>
-                        {conversation.participants.length === 2 && mockDoctors.find(d => d.id === conversation.participants.find(p => p !== 'current-user'))?.isOnline && (
-                          <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                        {conversation.participants.length === 2 && availableDoctors.find(d => d.id === conversation.participants.find(p => p !== 'current-user'))?.isOnline && (
+                          <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-background bg-green-500" />
                         )}
                       </div>
                       
@@ -394,7 +478,7 @@ export function Messages() {
                             {conversation.title || getDoctorName(conversation.participants.find(p => p !== 'current-user') || '')}
                           </p>
                           <div className="flex items-center gap-1">
-                            {conversation.isStarred && <Star className="h-3 w-3 text-yellow-500 fill-current" />}
+                            {conversation.isStarred && <Star className="h-3 w-3 text-yellow-500 fill-current" aria-hidden="true" />}
                             <span className="text-xs text-muted-foreground">
                               {formatTime(conversation.lastActivity)}
                             </span>
@@ -402,26 +486,26 @@ export function Messages() {
                         </div>
                         
                         {conversation.patientContext && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <Stethoscope className="h-3 w-3 text-accent" />
-                            <span className="text-xs text-accent font-medium">
+                          <div className="mt-1 flex items-center gap-1">
+                            <Stethoscope className="h-3 w-3 text-accent" aria-hidden="true" />
+                            <span className="text-xs font-medium text-accent">
                               {conversation.patientContext.consultationType.replace('-', ' ')}
                             </span>
                           </div>
                         )}
                         
-                        <p className="text-xs text-muted-foreground truncate mt-1">
+                        <p className="mt-1 text-xs text-muted-foreground truncate">
                           {conversation.lastMessage?.content || 'No messages yet'}
                         </p>
                       </div>
                       
                       {conversation.unreadCount > 0 && (
-                        <Badge variant="default" className="h-5 min-w-5 text-xs flex items-center justify-center px-1">
+                        <Badge variant="default" className="flex h-5 min-w-5 items-center justify-center px-1 text-xs">
                           {conversation.unreadCount}
                         </Badge>
                       )}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </ScrollArea>
@@ -458,15 +542,16 @@ export function Messages() {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
-                    <Phone className="h-4 w-4" />
+                  <Button variant="outline" size="sm" aria-label="Start audio call">
+                    <Phone className="h-4 w-4" aria-hidden="true" />
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Video className="h-4 w-4" />
+                  <Button variant="outline" size="sm" aria-label="Start video call">
+                    <Video className="h-4 w-4" aria-hidden="true" />
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
+                    aria-label={`${selectedConversation.isStarred ? 'Unstar' : 'Star'} this conversation`}
                     onClick={() => {
                       setConversations(prev => (prev || []).map(conv => 
                         conv.id === selectedConversationId 
@@ -474,8 +559,9 @@ export function Messages() {
                           : conv
                       ))
                     }}
+                    aria-pressed={selectedConversation.isStarred}
                   >
-                    <Star className={`h-4 w-4 ${selectedConversation.isStarred ? 'text-yellow-500 fill-current' : ''}`} />
+                    <Star className={`h-4 w-4 ${selectedConversation.isStarred ? 'text-yellow-500 fill-current' : ''}`} aria-hidden="true" />
                   </Button>
                 </div>
               </div>
@@ -608,15 +694,20 @@ export function Messages() {
                 </div>
                 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Paperclip className="h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    aria-label="Attach files (coming soon)"
+                    onClick={handleAttachmentClick}
+                  >
+                    <Paperclip className="h-4 w-4" aria-hidden="true" />
                   </Button>
                   <div className="flex-1 flex gap-2">
                     <Input
                       placeholder="Type your message..."
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      onKeyDown={handleComposerKeyDown}
                     />
                     <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
                       <Send className="h-4 w-4" />
@@ -645,7 +736,12 @@ export function Messages() {
                   <DialogHeader>
                     <DialogTitle>Start New Consultation</DialogTitle>
                   </DialogHeader>
-                  <NewConsultationForm onStart={handleStartConsultation} />
+                  <NewConsultationForm
+                    onStart={handleStartConsultation}
+                    doctors={availableDoctors}
+                    loading={doctorDirectoryLoading}
+                    error={doctorDirectoryError}
+                  />
                 </DialogContent>
               </Dialog>
             </CardContent>
@@ -658,13 +754,28 @@ export function Messages() {
 
 interface NewConsultationFormProps {
   onStart: (type: 'second-opinion' | 'referral' | 'general', doctorId: string, patientId?: string) => void
+  doctors: Doctor[]
+  loading: boolean
+  error: string | null
 }
 
-function NewConsultationForm({ onStart }: NewConsultationFormProps) {
+function NewConsultationForm({ onStart, doctors, loading, error }: NewConsultationFormProps) {
   const [consultationType, setConsultationType] = useState<'second-opinion' | 'referral' | 'general'>('general')
   const [selectedDoctor, setSelectedDoctor] = useState('')
   const [selectedPatient, setSelectedPatient] = useState('')
   const [message, setMessage] = useState('')
+
+  const doctorOptions = useMemo(
+    () => doctors.map((doctor) => ({
+      id: doctor.id,
+      label: doctor.name,
+      specialty: doctor.specialty,
+      isOnline: doctor.isOnline,
+    })),
+    [doctors]
+  )
+
+  const canStart = Boolean(selectedDoctor)
 
   const handleSubmit = () => {
     if (!selectedDoctor) {
@@ -673,6 +784,9 @@ function NewConsultationForm({ onStart }: NewConsultationFormProps) {
     }
 
     onStart(consultationType, selectedDoctor, selectedPatient || undefined)
+    setSelectedDoctor('')
+    setSelectedPatient('')
+    setMessage('')
   }
 
   return (
@@ -692,21 +806,34 @@ function NewConsultationForm({ onStart }: NewConsultationFormProps) {
       </div>
 
       <div>
-        <label className="text-sm font-medium mb-2 block">Select Doctor</label>
-        <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium">Select Doctor</label>
+          {loading && <span className="text-xs text-muted-foreground">Loading directory…</span>}
+        </div>
+        {error && <p className="text-xs text-destructive mb-2">{error}</p>}
+        <Select
+          value={selectedDoctor}
+          onValueChange={setSelectedDoctor}
+          disabled={loading || doctorOptions.length === 0}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Choose a colleague" />
           </SelectTrigger>
           <SelectContent>
-            {mockDoctors.map((doctor) => (
+            {doctorOptions.map((doctor) => (
               <SelectItem key={doctor.id} value={doctor.id}>
                 <div className="flex items-center gap-2">
                   <div className={`h-2 w-2 rounded-full ${doctor.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-                  <span>{doctor.name}</span>
+                  <span>{doctor.label}</span>
                   <span className="text-muted-foreground text-sm">- {doctor.specialty}</span>
                 </div>
               </SelectItem>
             ))}
+            {doctorOptions.length === 0 && !loading && (
+              <SelectItem value="no-doctors" disabled>
+                No directory entries available yet
+              </SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>
@@ -741,7 +868,7 @@ function NewConsultationForm({ onStart }: NewConsultationFormProps) {
         <Button variant="outline" onClick={() => setMessage('')}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit}>
+        <Button onClick={handleSubmit} disabled={!canStart}>
           Start Consultation
         </Button>
       </div>

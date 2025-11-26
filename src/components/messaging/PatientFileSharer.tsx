@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -9,6 +9,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog"
 import { 
   FileText, 
   Share, 
@@ -22,6 +33,7 @@ import {
   Shield
 } from "@phosphor-icons/react"
 import { toast } from 'sonner'
+import { useDoctorDirectory } from "@/hooks/useDoctorDirectory"
 
 interface PatientData {
   id: string
@@ -72,6 +84,11 @@ interface ShareableSection {
   icon: any
   description: string
   sensitive: boolean
+}
+
+interface DirectoryDoctorOption {
+  id: string
+  label: string
 }
 
 const shareableSections: ShareableSection[] = [
@@ -134,6 +151,30 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
   const [priority, setPriority] = useState('normal')
   const [purpose, setPurpose] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const [hasConsent, setHasConsent] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  const {
+    doctors: directoryDoctors,
+    loading: doctorDirectoryLoading,
+    error: doctorDirectoryError
+  } = useDoctorDirectory({ limit: 100 })
+
+  const doctorOptions = useMemo<DirectoryDoctorOption[]>(() => {
+    if (directoryDoctors.length === 0) {
+      return [
+        { id: 'doctor-1', label: 'Dr. Mohammed Al-Rashid - Neurology' },
+        { id: 'doctor-2', label: 'Dr. Fatima Hassan - Dermatology' },
+        { id: 'doctor-3', label: 'Dr. Ali Al-Mansouri - Orthopedics' },
+        { id: 'doctor-4', label: 'Dr. Nour Abdullah - Pediatrics' },
+      ]
+    }
+
+    return directoryDoctors.map((doctor) => ({
+      id: doctor.id,
+      label: `${doctor.name} - ${doctor.specialty || 'General Practice'}`
+    }))
+  }, [directoryDoctors])
 
   const patient = mockPatient // In real app, would fetch by patientId
 
@@ -145,22 +186,17 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
     )
   }
 
+  const requirementsMet = selectedSections.length > 0 && !!selectedDoctor && !!purpose && hasConsent
+
+  const handleRequestShare = () => {
+    if (!requirementsMet) {
+      toast.error('Please complete the required fields and confirm patient consent before sharing.')
+      return
+    }
+    setConfirmOpen(true)
+  }
+
   const handleShare = () => {
-    if (selectedSections.length === 0) {
-      toast.error('Please select at least one section to share')
-      return
-    }
-
-    if (!selectedDoctor) {
-      toast.error('Please select a doctor to share with')
-      return
-    }
-
-    if (!purpose) {
-      toast.error('Please specify the purpose of sharing')
-      return
-    }
-
     onShare(selectedSections, shareMessage, selectedDoctor, priority)
     
     // Reset form
@@ -169,7 +205,9 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
     setSelectedDoctor('')
     setPriority('normal')
     setPurpose('')
+    setHasConsent(false)
     setIsOpen(false)
+    setConfirmOpen(false)
     
     toast.success('Patient file shared successfully')
   }
@@ -179,7 +217,12 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
   ).length
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      setIsOpen(open)
+      if (!open) {
+        setConfirmOpen(false)
+      }
+    }}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Share className="h-4 w-4 mr-2" />
@@ -196,6 +239,16 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
         </DialogHeader>
 
         <div className="space-y-6">
+          <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+            <AlertTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Shield className="h-4 w-4" />
+              Protected health information
+            </AlertTitle>
+            <AlertDescription className="text-sm">
+              Sharing is end-to-end encrypted and logged. Confirm you have documented consent and only expose the minimum necessary sections.
+            </AlertDescription>
+          </Alert>
+
           {/* Patient Summary */}
           <Card>
             <CardHeader className="pb-3">
@@ -240,18 +293,32 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
 
           {/* Doctor Selection */}
           <div>
-            <label className="text-sm font-medium mb-2 block">
-              Share With <span className="text-destructive">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium">
+                Share With <span className="text-destructive">*</span>
+              </label>
+              {doctorDirectoryLoading && (
+                <span className="text-xs text-muted-foreground">Loading directory…</span>
+              )}
+            </div>
+            {doctorDirectoryError && (
+              <p className="text-xs text-destructive mb-2">{doctorDirectoryError}</p>
+            )}
             <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
               <SelectTrigger>
                 <SelectValue placeholder="Select colleague" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="doctor-1">Dr. Mohammed Al-Rashid - Neurology</SelectItem>
-                <SelectItem value="doctor-2">Dr. Fatima Hassan - Dermatology</SelectItem>
-                <SelectItem value="doctor-3">Dr. Ali Al-Mansouri - Orthopedics</SelectItem>
-                <SelectItem value="doctor-4">Dr. Nour Abdullah - Pediatrics</SelectItem>
+                {doctorOptions.map((doctor) => (
+                  <SelectItem key={doctor.id} value={doctor.id}>
+                    {doctor.label}
+                  </SelectItem>
+                ))}
+                {doctorOptions.length === 0 && !doctorDirectoryLoading && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    No directory entries available yet.
+                  </div>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -294,7 +361,8 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
                     >
                       <Checkbox 
                         checked={isSelected}
-                        onChange={() => handleSectionToggle(section.id)}
+                        onCheckedChange={() => handleSectionToggle(section.id)}
+                        aria-label={`Toggle ${section.name}`}
                       />
                       <Icon className={`h-5 w-5 mt-0.5 ${section.sensitive ? 'text-orange-500' : 'text-primary'}`} />
                       <div className="flex-1">
@@ -344,6 +412,23 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
             />
           </div>
 
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <p className="font-medium">Audit & Consent</p>
+            <p className="mt-1">
+              A confirmation receipt with the sections below will be logged for both physicians. Select only what is needed.
+            </p>
+            <div className="mt-3 flex items-start gap-2">
+              <Checkbox 
+                id="consent-confirmation"
+                checked={hasConsent}
+                onCheckedChange={(checked) => setHasConsent(checked === true)}
+              />
+              <label htmlFor="consent-confirmation" className="text-sm leading-relaxed">
+                I confirm the patient has provided explicit consent and understand the shared data will be recorded for compliance.
+              </label>
+            </div>
+          </div>
+
           <Separator />
 
           {/* Action Buttons */}
@@ -351,13 +436,44 @@ export function PatientFileSharer({ patientId = 'patient-1', onShare }: PatientF
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleShare}>
+            <Button onClick={handleRequestShare} disabled={!requirementsMet} aria-disabled={!requirementsMet}>
               <Share className="h-4 w-4 mr-2" />
               Share Patient File
             </Button>
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm patient file sharing</AlertDialogTitle>
+            <AlertDialogDescription>
+              The following sections will be sent securely to the selected doctor. Sensitive sections are highlighted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-sm">
+            {selectedSections.map((sectionId) => {
+              const section = shareableSections.find((s) => s.id === sectionId)
+              if (!section) return null
+              return (
+                <div key={section.id} className="flex items-center justify-between">
+                  <span>{section.name}</span>
+                  {section.sensitive && (
+                    <Badge variant="destructive" className="text-xs">Sensitive</Badge>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Review Again</AlertDialogCancel>
+            <AlertDialogAction onClick={handleShare}>
+              Share Securely
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

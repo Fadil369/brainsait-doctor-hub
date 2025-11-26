@@ -145,9 +145,11 @@ export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
-              <div 
+              <button
                 key={appointment.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                type="button"
+                aria-label={`Open ${appointment.patientName}'s appointment scheduled at ${appointment.time}`}
+                className="flex w-full items-center justify-between rounded-lg border border-transparent bg-muted/30 p-3 text-left transition-colors hover:bg-muted/50 focus-visible:border-primary focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 onClick={() => onPatientSelect(appointment.patientId)}
               >
                 <div className="flex items-center space-x-3">
@@ -170,10 +172,10 @@ export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
                     {appointment.type}
                   </Badge>
                   {appointment.type === 'telemedicine' && (
-                    <Phone size={16} className="text-primary" />
+                    <Phone size={16} className="text-primary" aria-hidden="true" />
                   )}
                 </div>
-              </div>
+              </button>
             )) : (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No appointments scheduled for today

@@ -1,0 +1,17 @@
+# Development Environment Variables
+# Copy this file to .dev.vars for local development
+
+# API Security
+API_KEY=dev-secret-key-change-in-production
+
+# Encryption key for PHI data (32+ characters recommended)
+ENCRYPTION_KEY=dev-encryption-key-replace-with-strong-secret-in-production
+
+# Environment
+ENVIRONMENT=development
+
+# Session timeout (milliseconds)
+SESSION_TIMEOUT_MS=1800000
+
+# CORS allowed origins (comma-separated)
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5001

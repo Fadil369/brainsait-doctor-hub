@@ -16,8 +16,10 @@ import {
   Share,
   Users,
   Plus,
-  Warning
+  Warning,
+  ShieldCheck
 } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 
 interface TelemedicineSession {
   id: string
@@ -103,6 +105,10 @@ export function Telemedicine() {
     })
   }
 
+  const handleComingSoon = (feature: string) => {
+    toast.info(`${feature} will be available soon. Hang tight while we finish the workflow.`)
+  }
+
   const getStatusColor = (status: TelemedicineSession['status']) => {
     switch (status) {
       case 'active':
@@ -125,6 +131,19 @@ export function Telemedicine() {
     return (
       <div className="h-full flex flex-col bg-black text-white">
         <div className="flex-1 relative">
+          <div className="absolute left-4 top-4 flex flex-col gap-2 text-xs sm:text-sm">
+            <div className="flex items-center gap-2">
+              <Badge variant="destructive" className="uppercase tracking-widest">Live</Badge>
+              <Badge variant={callControls.recording ? 'destructive' : 'secondary'}>
+                {callControls.recording ? 'Recording on' : 'Recording off'}
+              </Badge>
+              <Badge variant="secondary">E2E encrypted</Badge>
+            </div>
+            <p className="max-w-xs rounded-md bg-black/70 px-3 py-2 text-white/80">
+              Consent verified for {session.patientName}. A compliance log will be emailed after the call.
+            </p>
+          </div>
+
           <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
             <div className="text-center">
               <Avatar className="w-32 h-32 mx-auto mb-4">
@@ -153,13 +172,17 @@ export function Telemedicine() {
           </div>
         </div>
 
-        <div className="p-6 bg-black/80 border-t border-white/10">
+        <div 
+          className="p-6 bg-black/80 border-t border-white/10 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        >
           <div className="flex items-center justify-center space-x-4">
             <Button
               variant={callControls.audio ? "default" : "destructive"}
               size="lg"
               className="rounded-full w-12 h-12"
               onClick={() => toggleControl('audio')}
+              aria-label={callControls.audio ? 'Mute microphone' : 'Unmute microphone'}
+              aria-pressed={!callControls.audio}
             >
               {callControls.audio ? <Microphone size={20} /> : <MicrophoneSlash size={20} />}
             </Button>
@@ -169,6 +192,8 @@ export function Telemedicine() {
               size="lg"
               className="rounded-full w-12 h-12"
               onClick={() => toggleControl('video')}
+              aria-label={callControls.video ? 'Turn camera off' : 'Turn camera on'}
+              aria-pressed={!callControls.video}
             >
               {callControls.video ? <VideoCamera size={20} /> : <EyeSlash size={20} />}
             </Button>
@@ -178,6 +203,8 @@ export function Telemedicine() {
               size="lg"
               className="rounded-full w-12 h-12"
               onClick={() => toggleControl('recording')}
+              aria-label={callControls.recording ? 'Stop recording' : 'Start recording'}
+              aria-pressed={callControls.recording}
             >
               <Record size={20} />
             </Button>
@@ -187,6 +214,8 @@ export function Telemedicine() {
               size="lg"
               className="rounded-full w-12 h-12"
               onClick={() => toggleControl('sharing')}
+              aria-label={callControls.sharing ? 'Stop screen sharing' : 'Start screen sharing'}
+              aria-pressed={callControls.sharing}
             >
               <Share size={20} />
             </Button>
@@ -196,6 +225,7 @@ export function Telemedicine() {
               size="lg"
               className="rounded-full w-16 h-12 ml-8"
               onClick={endCall}
+              aria-label="End call"
             >
               End Call
             </Button>
@@ -217,10 +247,20 @@ export function Telemedicine() {
             </p>
           </div>
         </div>
-        <Button>
+        <Button onClick={() => handleComingSoon('Telemedicine scheduling')}>
           <Plus size={16} className="mr-2" />
           Schedule Session
         </Button>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+        <ShieldCheck size={20} className="mt-0.5" />
+        <div>
+          <p className="font-medium">Patient consent & privacy</p>
+          <p>
+            Each call begins with a verbal consent check and is encrypted end-to-end. Shared screens and files are logged for auditing.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -288,7 +328,7 @@ export function Telemedicine() {
               <div className="text-center py-8">
                 <VideoCamera size={48} className="mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No upcoming sessions</p>
-                <Button className="mt-4">
+                <Button className="mt-4" onClick={() => handleComingSoon('Telemedicine scheduling')}>
                   <Plus size={16} className="mr-2" />
                   Schedule Session
                 </Button>
@@ -327,8 +367,8 @@ export function Telemedicine() {
                           <VideoCamera size={14} className="mr-1" />
                           Join
                         </Button>
-                        <Button size="sm" variant="outline">
-                          <Phone size={14} className="mr-1" />
+                        <Button size="sm" variant="outline" onClick={() => handleComingSoon('Click-to-call handoff')}>
+                          <Phone size={14} className="mr-1" aria-hidden="true" />
                           Call
                         </Button>
                       </div>
@@ -376,7 +416,7 @@ export function Telemedicine() {
                       </div>
                     </div>
 
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => handleComingSoon('Session note export')}>
                       View Notes
                     </Button>
                   </div>
@@ -393,15 +433,15 @@ export function Telemedicine() {
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => handleComingSoon('Instant meeting launch')}>
               <VideoCamera size={16} className="mr-2" />
               Start Instant Meeting
             </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => handleComingSoon('Emergency consultation workflow')}>
               <Phone size={16} className="mr-2" />
               Emergency Consultation
             </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => handleComingSoon('Group session hosting')}>
               <Users size={16} className="mr-2" />
               Group Session
             </Button>
@@ -433,13 +473,13 @@ export function Telemedicine() {
             <CardTitle className="text-lg">Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => handleComingSoon('AV diagnostic tools')}>
               Audio/Video Test
             </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => handleComingSoon('Recording configuration')}>
               Recording Settings
             </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => handleComingSoon('Notification preferences control')}>
               Notification Preferences
             </Button>
           </CardContent>

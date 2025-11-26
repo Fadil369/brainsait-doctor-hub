@@ -1,4 +1,5 @@
 import { useKV } from '@github/spark/hooks'
+import { usePatient } from '@/db'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,30 +15,14 @@ import {
   Plus,
   Share
 } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 
 interface PatientDetailsProps {
   patientId: string | null
   onBack: () => void
 }
 
-interface Patient {
-  id: string
-  name: string
-  age: number
-  gender: string
-  phone: string
-  email: string
-  address: string
-  emergencyContact: string
-  bloodType: string
-  allergies: string[]
-  conditions: string[]
-  medications: string[]
-  lastVisit: string
-  status: 'stable' | 'critical' | 'improving' | 'monitoring'
-}
-
-interface MedicalRecord {
+interface PatientMedicalRecord {
   id: string
   date: string
   type: string
@@ -47,7 +32,7 @@ interface MedicalRecord {
   doctor: string
 }
 
-interface LabResult {
+interface PatientLabResult {
   id: string
   date: string
   test: string
@@ -57,24 +42,9 @@ interface LabResult {
 }
 
 export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
-  const [patient] = useKV<Patient>(`patient-${patientId}`, {
-    id: patientId || '1',
-    name: 'Ahmed Al-Rashid',
-    age: 45,
-    gender: 'Male',
-    phone: '+966 50 123 4567',
-    email: 'ahmed.rashid@email.com',
-    address: 'Riyadh, Saudi Arabia',
-    emergencyContact: '+966 50 987 6543',
-    bloodType: 'O+',
-    allergies: ['Penicillin', 'Peanuts'],
-    conditions: ['Hypertension', 'Type 2 Diabetes'],
-    medications: ['Lisinopril 10mg', 'Metformin 500mg'],
-    lastVisit: '2024-01-15',
-    status: 'stable'
-  })
+  const { patient, isLoading: patientLoading } = usePatient(patientId)
 
-  const [medicalHistory] = useKV<MedicalRecord[]>(`medical-history-${patientId}`, [
+  const [medicalHistory] = useKV<PatientMedicalRecord[]>(`medical-history-${patientId}`, [
     {
       id: '1',
       date: '2024-01-15',
@@ -95,7 +65,7 @@ export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
     }
   ])
 
-  const [labResults] = useKV<LabResult[]>(`lab-results-${patientId}`, [
+  const [labResults] = useKV<PatientLabResult[]>(`lab-results-${patientId}`, [
     {
       id: '1',
       date: '2024-01-15',
@@ -122,13 +92,29 @@ export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
     }
   ])
 
-  if (!patient) {
+  const handleComingSoon = (feature: string) => {
+    toast.info(`${feature} will be available soon. In the meantime, continue managing the patient record.`)
+  }
+
+  if (patientLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">Loading patient details...</p>
       </div>
     )
   }
+
+  if (!patient) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Select a patient to view the record.</p>
+      </div>
+    )
+  }
+
+  const allergies = patient.allergies ?? []
+  const medications = patient.medications ?? []
+  const conditions = patient.conditions ?? []
 
   return (
     <div className="space-y-6">
@@ -147,15 +133,26 @@ export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
         </div>
         
         <div className="flex items-center space-x-2">
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            aria-label="Share patient record (coming soon)"
+            onClick={() => handleComingSoon('Patient record sharing')}
+          >
             <Share size={16} className="mr-2" />
             Share
           </Button>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            aria-label="Export patient record to PDF (coming soon)"
+            onClick={() => handleComingSoon('PDF export')}
+          >
             <FilePdf size={16} className="mr-2" />
             Export
           </Button>
-          <Button>
+          <Button
+            aria-label="Schedule appointment (coming soon)"
+            onClick={() => handleComingSoon('Appointment scheduling')}
+          >
             <Calendar size={16} className="mr-2" />
             Schedule
           </Button>
@@ -205,11 +202,22 @@ export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
             </div>
 
             <div className="flex space-x-2">
-              <Button size="sm" className="flex-1">
+              <Button 
+                size="sm" 
+                className="flex-1"
+                aria-label="Call patient (coming soon)"
+                onClick={() => handleComingSoon('Phone call')}
+              >
                 <Phone size={14} className="mr-1" />
                 Call
               </Button>
-              <Button size="sm" variant="outline" className="flex-1">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="flex-1"
+                aria-label="Start video consultation (coming soon)"
+                onClick={() => handleComingSoon('Video consultation')}
+              >
                 <VideoCamera size={14} className="mr-1" />
                 Video
               </Button>
@@ -233,7 +241,7 @@ export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
                     <CardTitle className="text-lg">Current Conditions</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {patient.conditions?.map((condition, index) => (
+                    {conditions.map((condition, index) => (
                       <Badge key={index} variant="secondary" className="mr-2 mb-2">
                         {condition}
                       </Badge>
@@ -246,7 +254,7 @@ export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
                     <CardTitle className="text-lg">Current Medications</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {patient.medications?.map((medication, index) => (
+                    {medications.map((medication, index) => (
                       <div key={index} className="p-2 bg-muted/30 rounded text-sm">
                         {medication}
                       </div>
@@ -259,7 +267,7 @@ export function PatientDetails({ patientId, onBack }: PatientDetailsProps) {
                     <CardTitle className="text-lg">Allergies</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {patient.allergies?.map((allergy, index) => (
+                    {allergies.map((allergy, index) => (
                       <Badge key={index} variant="destructive" className="mr-2 mb-2">
                         <Warning size={12} className="mr-1" />
                         {allergy}

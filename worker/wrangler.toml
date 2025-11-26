@@ -1,0 +1,34 @@
+name = "brainsait-doctor-hub-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-26"
+compatibility_flags = ["nodejs_compat"]
+
+# KV Namespaces for data storage
+[[kv_namespaces]]
+binding = "PATIENTS_KV"
+id = "4d458ff76e8e4802a52f883151bceb77"
+preview_id = "e9fdd1890a9b487cbb364dc3fc9da116"
+
+[[kv_namespaces]]
+binding = "AUDIT_KV"
+id = "0839fd9f1cb447a0a07271cb6c2214b6"
+preview_id = "b5eea200937e40858130d41daa89193c"
+
+[[kv_namespaces]]
+binding = "SESSIONS_KV"
+id = "784107421f2646f0812fb190720d3903"
+preview_id = "68e6a11a02694c8388d50add8bba556f"
+
+# Environment configuration
+[env.production]
+name = "brainsait-doctor-hub-api-production"
+vars = { ENVIRONMENT = "production" }
+
+[env.staging]
+name = "brainsait-doctor-hub-api-staging"
+vars = { ENVIRONMENT = "staging" }
+
+# CORS configuration
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:4173,https://brainsait.github.io"
+SESSION_TIMEOUT_MS = "1800000"

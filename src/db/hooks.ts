@@ -18,6 +18,15 @@ import type {
   LabResult,
   TelemedicineSession,
 } from '@/types';
+import { isBackendEnabled } from '@/lib/api-client';
+import {
+  listPatients as listRemotePatients,
+  getPatient as getRemotePatient,
+  createPatient as createRemotePatient,
+  updatePatient as updateRemotePatient,
+  deletePatient as deleteRemotePatient,
+} from '@/services/patients';
+import { getAuthToken } from '@/services/auth-session';
 
 // ==================== Generic Database Hook ====================
 
@@ -159,12 +168,13 @@ interface UsePatientsOptions extends UseCollectionOptions<Patient> {
 
 export function usePatients(options: UsePatientsOptions = {}) {
   const { search, status, ...restOptions } = options;
+  const backendEnabled = isBackendEnabled();
 
   const whereClause = useMemo(() => {
     if (!search && !status?.length) return undefined;
 
     return (patient: Patient) => {
-      const matchesSearch = !search || 
+      const matchesSearch = !search ||
         patient.name.toLowerCase().includes(search.toLowerCase()) ||
         patient.mrn.toLowerCase().includes(search.toLowerCase()) ||
         patient.phone.includes(search) ||
@@ -176,13 +186,109 @@ export function usePatients(options: UsePatientsOptions = {}) {
     };
   }, [search, status]);
 
+  const [backendData, setBackendData] = useState<Patient[]>([]);
+  const [backendLoading, setBackendLoading] = useState<boolean>(backendEnabled);
+  const [backendError, setBackendError] = useState<Error | null>(null);
+  const [backendTotal, setBackendTotal] = useState(0);
+
+  const fetchBackendPatients = useCallback(async () => {
+    if (!backendEnabled) return;
+
+    const token = getAuthToken();
+    if (!token) {
+      setBackendData([]);
+      setBackendTotal(0);
+      setBackendLoading(false);
+      return;
+    }
+
+    setBackendLoading(true);
+
+    try {
+      const response = await listRemotePatients({ search, limit: restOptions.limit });
+      let data = response.patients || [];
+
+      if (status?.length) {
+        data = data.filter(patient => status.includes(patient.status));
+      }
+
+      setBackendData(data);
+      setBackendTotal(response.total ?? data.length);
+      setBackendError(null);
+    } catch (error) {
+      setBackendError(error instanceof Error ? error : new Error('Failed to fetch patients'));
+    } finally {
+      setBackendLoading(false);
+    }
+  }, [backendEnabled, restOptions.limit, search, status]);
+
+  useEffect(() => {
+    if (!backendEnabled) return;
+    fetchBackendPatients();
+  }, [backendEnabled, fetchBackendPatients]);
+
+  const backendCreate = useCallback(async (patient: Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const response = await createRemotePatient(patient);
+    await fetchBackendPatients();
+    return response.patient;
+  }, [fetchBackendPatients]);
+
+  const backendUpdate = useCallback(async (id: string, updates: Partial<Patient>) => {
+    const response = await updateRemotePatient(id, updates);
+    await fetchBackendPatients();
+    return response.patient;
+  }, [fetchBackendPatients]);
+
+  const backendRemove = useCallback(async (id: string) => {
+    await deleteRemotePatient(id);
+    await fetchBackendPatients();
+    return true;
+  }, [fetchBackendPatients]);
+
+  const backendGetByMrn = useCallback(async (mrn: string) => {
+    if (!backendData.length) {
+      await fetchBackendPatients();
+    }
+    return backendData.find(patient => patient.mrn === mrn) || null;
+  }, [backendData, fetchBackendPatients]);
+
+  const backendGetByNationalId = useCallback(async (nationalId: string) => {
+    if (!backendData.length) {
+      await fetchBackendPatients();
+    }
+    return backendData.find(patient => patient.nationalId === nationalId) || null;
+  }, [backendData, fetchBackendPatients]);
+
+  const backendGetStatistics = useCallback(async () => {
+    return backendData.reduce((acc, patient) => {
+      acc[patient.status] = (acc[patient.status] || 0) + 1;
+      return acc;
+    }, {} as Record<Patient['status'], number>);
+  }, [backendData]);
+
+  if (backendEnabled) {
+    return {
+      data: backendData,
+      isLoading: backendLoading,
+      error: backendError,
+      total: backendTotal,
+      refetch: fetchBackendPatients,
+      create: backendCreate,
+      update: backendUpdate,
+      remove: backendRemove,
+      getByMrn: backendGetByMrn,
+      getByNationalId: backendGetByNationalId,
+      getStatistics: backendGetStatistics,
+    };
+  }
+
   const result = useCollection<Patient>(COLLECTIONS.PATIENTS, {
     ...restOptions,
     where: whereClause,
     orderBy: restOptions.orderBy || 'name',
   });
 
-  // Additional patient-specific helpers
+  // Additional patient-specific helpers for offline mode
   const getByMrn = useCallback(async (mrn: string) => {
     const db = getDatabase();
     const patients = await db.findByIndex<Patient>(
@@ -228,10 +334,33 @@ export function usePatients(options: UsePatientsOptions = {}) {
  * Hook for single patient
  */
 export function usePatient(patientId: string | null) {
+  const backendEnabled = isBackendEnabled();
   const [patient, setPatient] = useState<Patient | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(Boolean(patientId));
   const [error, setError] = useState<Error | null>(null);
   const db = useMemo(() => getDatabase(), []);
+
+  const fetchBackendPatient = useCallback(async () => {
+    if (!backendEnabled || !patientId) return;
+
+    const token = getAuthToken();
+    if (!token) {
+      setPatient(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await getRemotePatient(patientId);
+      setPatient(response.patient);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch patient'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [backendEnabled, patientId]);
 
   useEffect(() => {
     if (!patientId) {
@@ -240,11 +369,17 @@ export function usePatient(patientId: string | null) {
       return;
     }
 
-    const fetchPatient = async () => {
+    if (backendEnabled) {
+      fetchBackendPatient();
+      return;
+    }
+
+    const fetchLocalPatient = async () => {
       try {
         setIsLoading(true);
         const data = await db.get<Patient>(COLLECTIONS.PATIENTS, patientId);
         setPatient(data);
+        setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch patient'));
       } finally {
@@ -252,15 +387,22 @@ export function usePatient(patientId: string | null) {
       }
     };
 
-    fetchPatient();
-  }, [patientId, db]);
+    fetchLocalPatient();
+  }, [backendEnabled, patientId, db, fetchBackendPatient]);
 
   const updatePatient = useCallback(async (updates: Partial<Patient>) => {
     if (!patientId) return null;
+
+    if (backendEnabled) {
+      const response = await updateRemotePatient(patientId, updates);
+      setPatient(response.patient);
+      return response.patient;
+    }
+
     const updated = await db.update<Patient>(COLLECTIONS.PATIENTS, patientId, updates);
     if (updated) setPatient(updated);
     return updated;
-  }, [patientId, db]);
+  }, [backendEnabled, db, patientId]);
 
   return { patient, isLoading, error, updatePatient };
 }
