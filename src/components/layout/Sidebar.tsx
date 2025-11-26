@@ -14,7 +14,6 @@ import {
   ChatCircle,
   Gear,
   SignOut,
-  Moon,
   Sun,
   CaretRight,
   UserCircle,

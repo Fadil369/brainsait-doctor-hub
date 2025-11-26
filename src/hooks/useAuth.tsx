@@ -370,7 +370,7 @@ export function useAuth() {
 
 // Utility functions for role-based access control
 export const hasPermission = (user: User | null, permission: string): boolean => {
-  if (!user) return false
+  if (!user || !user.permissions) return false
   return user.permissions.includes(permission) || user.permissions.includes('admin:*')
 }
 

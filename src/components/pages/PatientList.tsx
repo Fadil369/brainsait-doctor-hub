@@ -32,8 +32,6 @@ export function PatientList({ onPatientSelect }: PatientListProps) {
   const { 
     data: patients, 
     isLoading, 
-    total,
-    getStatistics 
   } = usePatients({
     search: searchTerm,
     orderBy: 'name',

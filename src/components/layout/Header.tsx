@@ -18,7 +18,6 @@ import {
   SignOut,
   User,
   Question,
-  Moon,
   Sun,
   Command,
   Globe
