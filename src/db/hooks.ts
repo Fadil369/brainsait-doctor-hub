@@ -186,12 +186,12 @@ export function usePatients(options: UsePatientsOptions = {}) {
     };
   }, [search, status]);
 
-  // Always call useCollection to satisfy React hooks rules
+  // Use local collection when backend is not enabled
   const localResult = useCollection<Patient>(COLLECTIONS.PATIENTS, {
     ...restOptions,
     where: whereClause,
     orderBy: restOptions.orderBy || 'name',
-    enabled: !backendEnabled, // Disable when using backend
+    enabled: !backendEnabled,
   });
 
   const [backendData, setBackendData] = useState<Patient[]>([]);
