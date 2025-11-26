@@ -39,10 +39,10 @@ function getRelativeTime(dateString: string): string {
 export function Dashboard({ onNavigate, onPatientSelect }: DashboardProps) {
   // Use database hooks for real-time data
   const { stats, isLoading: statsLoading } = useDashboardStats()
-  const { data: appointments, getUpcoming } = useAppointments({
+  const { getUpcoming } = useAppointments({
     date: new Date().toISOString().split('T')[0],
   })
-  const { data: notifications, unreadCount } = useNotifications({
+  const { data: notifications } = useNotifications({
     unreadOnly: true,
     limit: 5,
   })

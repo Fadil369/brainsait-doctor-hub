@@ -186,6 +186,14 @@ export function usePatients(options: UsePatientsOptions = {}) {
     };
   }, [search, status]);
 
+  // Always call useCollection to satisfy React hooks rules
+  const localResult = useCollection<Patient>(COLLECTIONS.PATIENTS, {
+    ...restOptions,
+    where: whereClause,
+    orderBy: restOptions.orderBy || 'name',
+    enabled: !backendEnabled, // Disable when using backend
+  });
+
   const [backendData, setBackendData] = useState<Patient[]>([]);
   const [backendLoading, setBackendLoading] = useState<boolean>(backendEnabled);
   const [backendError, setBackendError] = useState<Error | null>(null);
@@ -266,6 +274,41 @@ export function usePatients(options: UsePatientsOptions = {}) {
     }, {} as Record<Patient['status'], number>);
   }, [backendData]);
 
+  // Additional patient-specific helpers for offline mode
+  const localGetByMrn = useCallback(async (mrn: string) => {
+    const db = getDatabase();
+    const patients = await db.findByIndex<Patient>(
+      COLLECTIONS.PATIENTS,
+      COLLECTIONS.INDEX_PATIENT_MRN,
+      mrn
+    );
+    return patients[0] || null;
+  }, []);
+
+  const localGetByNationalId = useCallback(async (nationalId: string) => {
+    const db = getDatabase();
+    const patients = await db.findByIndex<Patient>(
+      COLLECTIONS.PATIENTS,
+      COLLECTIONS.INDEX_PATIENT_NATIONAL_ID,
+      nationalId
+    );
+    return patients[0] || null;
+  }, []);
+
+  const localGetStatistics = useCallback(async () => {
+    const db = getDatabase();
+    const stats = await db.aggregate<Patient, 'status'>(
+      COLLECTIONS.PATIENTS,
+      'status',
+      { count: true }
+    );
+    return stats.reduce((acc, { group, count }) => {
+      acc[group] = count || 0;
+      return acc;
+    }, {} as Record<Patient['status'], number>);
+  }, []);
+
+  // Return backend or local results based on configuration
   if (backendEnabled) {
     return {
       data: backendData,
@@ -282,51 +325,11 @@ export function usePatients(options: UsePatientsOptions = {}) {
     };
   }
 
-  const result = useCollection<Patient>(COLLECTIONS.PATIENTS, {
-    ...restOptions,
-    where: whereClause,
-    orderBy: restOptions.orderBy || 'name',
-  });
-
-  // Additional patient-specific helpers for offline mode
-  const getByMrn = useCallback(async (mrn: string) => {
-    const db = getDatabase();
-    const patients = await db.findByIndex<Patient>(
-      COLLECTIONS.PATIENTS,
-      COLLECTIONS.INDEX_PATIENT_MRN,
-      mrn
-    );
-    return patients[0] || null;
-  }, []);
-
-  const getByNationalId = useCallback(async (nationalId: string) => {
-    const db = getDatabase();
-    const patients = await db.findByIndex<Patient>(
-      COLLECTIONS.PATIENTS,
-      COLLECTIONS.INDEX_PATIENT_NATIONAL_ID,
-      nationalId
-    );
-    return patients[0] || null;
-  }, []);
-
-  const getStatistics = useCallback(async () => {
-    const db = getDatabase();
-    const stats = await db.aggregate<Patient, 'status'>(
-      COLLECTIONS.PATIENTS,
-      'status',
-      { count: true }
-    );
-    return stats.reduce((acc, { group, count }) => {
-      acc[group] = count || 0;
-      return acc;
-    }, {} as Record<Patient['status'], number>);
-  }, []);
-
   return {
-    ...result,
-    getByMrn,
-    getByNationalId,
-    getStatistics,
+    ...localResult,
+    getByMrn: localGetByMrn,
+    getByNationalId: localGetByNationalId,
+    getStatistics: localGetStatistics,
   };
 }
 

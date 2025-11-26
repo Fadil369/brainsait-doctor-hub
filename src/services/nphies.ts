@@ -242,7 +242,7 @@ export class NPHIESService {
           message: 'Claim is being reviewed',
         },
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
         error: {
@@ -289,7 +289,7 @@ export class NPHIESService {
         success: true,
         data: preAuth,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
         error: {
@@ -303,7 +303,7 @@ export class NPHIESService {
   /**
    * Get patient eligibility
    */
-  async checkEligibility(patientId: string, insuranceId: string): Promise<ApiResponse<{
+  async checkEligibility(patientId: string, _insuranceId: string): Promise<ApiResponse<{
     eligible: boolean;
     coverage: {
       type: string;
@@ -334,7 +334,7 @@ export class NPHIESService {
           },
         },
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
         error: {

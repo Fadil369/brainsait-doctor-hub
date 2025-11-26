@@ -317,7 +317,7 @@ export class AppointmentService {
     const endDate = pattern.endDate ? new Date(pattern.endDate) : null;
     const maxOccurrences = pattern.occurrences || 12;
 
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     let count = 0;
 
     while (count < maxOccurrences) {

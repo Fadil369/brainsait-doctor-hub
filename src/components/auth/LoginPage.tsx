@@ -29,7 +29,6 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     register,
     handleSubmit,
     formState: { errors },
-    getValues
   } = useForm<LoginForm>()
 
   const onSubmit = async (data: LoginForm) => {
