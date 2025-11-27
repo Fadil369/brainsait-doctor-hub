@@ -86,7 +86,7 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     mfaEnabled: false,
     mfaRequired: false
   },
-  // Super Admin - Full access to all features
+  // Super Admin - Full access to all features (DEVELOPMENT ONLY - use environment variables in production)
   'super.admin': {
     id: 'super-admin-001',
     username: 'super.admin',
@@ -95,28 +95,12 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     role: 'admin',
     licenseNumber: 'SA-ADMIN-001',
     specialty: 'System Administration',
-    password: 'SuperAdmin2024!',
-    permissions: [
-      'admin:*',
-      'read:*',
-      'write:*',
-      'delete:*',
-      'manage:users',
-      'manage:roles',
-      'manage:settings',
-      'manage:integrations',
-      'nphies:*',
-      'telemedicine:*',
-      'reports:*',
-      'audit:*',
-      'procurement:*',
-      'delegation:*',
-      'profile:*'
-    ],
+    password: 'SuperAdmin2024!', // TODO: Move to environment variables for production
+    permissions: ['admin:*'], // Full admin access
     mfaEnabled: false,
     mfaRequired: false
   },
-  // Dr. Fadil - Doctor with super admin privileges
+  // Dr. Fadil - Doctor with super admin privileges (DEVELOPMENT ONLY)
   'dr.fadil': {
     id: 'dr-fadil-001',
     username: 'dr.fadil',
@@ -125,30 +109,8 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     role: 'doctor',
     licenseNumber: 'SCFHS-DOC-001',
     specialty: 'General Practice',
-    password: 'DrFadil2024!',
-    permissions: [
-      'admin:*',
-      'read:*',
-      'write:*',
-      'delete:*',
-      'manage:users',
-      'manage:roles',
-      'manage:settings',
-      'manage:integrations',
-      'nphies:*',
-      'telemedicine:*',
-      'reports:*',
-      'audit:*',
-      'procurement:*',
-      'delegation:*',
-      'profile:*',
-      'patients:*',
-      'appointments:*',
-      'claims:*',
-      'prescriptions:*',
-      'lab:*',
-      'imaging:*'
-    ],
+    password: 'DrFadil2024!', // TODO: Move to environment variables for production
+    permissions: ['admin:*', 'patients:*', 'appointments:*', 'claims:*'], // Full access
     mfaEnabled: false,
     mfaRequired: false
   }
