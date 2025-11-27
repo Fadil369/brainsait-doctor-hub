@@ -68,7 +68,6 @@ function AppContent() {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isLoginSuccessful, setIsLoginSuccessful] = useState(false)
   const isMobile = useIsMobile()
   
   // Determine current page from route

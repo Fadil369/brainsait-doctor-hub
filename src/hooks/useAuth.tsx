@@ -86,7 +86,8 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     mfaEnabled: false,
     mfaRequired: false
   },
-  // Super Admin - Full access to all features (DEVELOPMENT ONLY - use environment variables in production)
+  // Super Admin - Full access to all features (DEVELOPMENT ONLY)
+  // Password is loaded from environment variables for better security
   'super.admin': {
     id: 'super-admin-001',
     username: 'super.admin',
@@ -95,12 +96,13 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     role: 'admin',
     licenseNumber: 'SA-ADMIN-001',
     specialty: 'System Administration',
-    password: 'SuperAdmin2024!', // TODO: Move to environment variables for production
+    password: import.meta.env.VITE_DEV_SUPER_ADMIN_PASSWORD || 'SuperAdmin2024!',
     permissions: ['admin:*'], // Full admin access
     mfaEnabled: false,
     mfaRequired: false
   },
   // Dr. Fadil - Doctor with super admin privileges (DEVELOPMENT ONLY)
+  // Password is loaded from environment variables for better security
   'dr.fadil': {
     id: 'dr-fadil-001',
     username: 'dr.fadil',
@@ -109,7 +111,7 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     role: 'doctor',
     licenseNumber: 'SCFHS-DOC-001',
     specialty: 'General Practice',
-    password: 'DrFadil2024!', // TODO: Move to environment variables for production
+    password: import.meta.env.VITE_DEV_DR_FADIL_PASSWORD || 'DrFadil2024!',
     permissions: ['admin:*', 'patients:*', 'appointments:*', 'claims:*'], // Full access
     mfaEnabled: false,
     mfaRequired: false

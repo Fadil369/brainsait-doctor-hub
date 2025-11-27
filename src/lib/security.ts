@@ -289,3 +289,128 @@ export const secureStorage = {
     sessionStorage.clear();
   }
 };
+
+/**
+ * Content Security Policy (CSP) violation reporter
+ */
+export function setupCSPReporting(): void {
+  if (typeof document !== 'undefined') {
+    document.addEventListener('securitypolicyviolation', (e) => {
+      console.error('CSP Violation:', {
+        blockedURI: e.blockedURI,
+        violatedDirective: e.violatedDirective,
+        originalPolicy: e.originalPolicy,
+      });
+
+      // In production, send to logging service
+      if (import.meta.env.PROD) {
+        // Send to your logging endpoint
+        fetch('/api/audit/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'csp_violation',
+            details: {
+              blockedURI: e.blockedURI,
+              violatedDirective: e.violatedDirective,
+              disposition: e.disposition,
+            },
+          }),
+        }).catch(() => {
+          // Silently fail if logging endpoint unavailable
+        });
+      }
+    });
+  }
+}
+
+/**
+ * Detect and prevent clickjacking attempts
+ */
+export function preventClickjacking(): void {
+  if (typeof window !== 'undefined') {
+    if (window.top !== window.self) {
+      // Page is in an iframe
+      console.warn('Potential clickjacking detected - page loaded in iframe');
+
+      // Optional: Break out of iframe (use with caution)
+      // window.top.location = window.self.location;
+
+      // Or display warning
+      document.body.innerHTML = '<h1>Security Warning: This page cannot be displayed in a frame.</h1>';
+    }
+  }
+}
+
+/**
+ * Detect suspicious activity patterns
+ */
+export class SecurityMonitor {
+  private activityLog: Array<{ action: string; timestamp: number }> = [];
+  private suspiciousPatterns = {
+    rapidRequests: { threshold: 10, windowMs: 1000 },
+    failedLogins: { threshold: 5, windowMs: 300000 },
+  };
+
+  logActivity(action: string): void {
+    this.activityLog.push({ action, timestamp: Date.now() });
+
+    // Keep only last hour of activity
+    const oneHourAgo = Date.now() - 3600000;
+    this.activityLog = this.activityLog.filter((log) => log.timestamp > oneHourAgo);
+
+    this.checkForSuspiciousActivity();
+  }
+
+  private checkForSuspiciousActivity(): void {
+    const now = Date.now();
+
+    // Check for rapid requests
+    const recentRequests = this.activityLog.filter(
+      (log) => now - log.timestamp < this.suspiciousPatterns.rapidRequests.windowMs
+    );
+
+    if (recentRequests.length > this.suspiciousPatterns.rapidRequests.threshold) {
+      console.warn('Suspicious activity detected: Rapid requests');
+      this.triggerSecurityAlert('rapid_requests', {
+        count: recentRequests.length,
+        windowMs: this.suspiciousPatterns.rapidRequests.windowMs,
+      });
+    }
+
+    // Check for repeated failed logins
+    const failedLogins = this.activityLog.filter(
+      (log) =>
+        log.action === 'login_failed' &&
+        now - log.timestamp < this.suspiciousPatterns.failedLogins.windowMs
+    );
+
+    if (failedLogins.length >= this.suspiciousPatterns.failedLogins.threshold) {
+      console.warn('Suspicious activity detected: Multiple failed login attempts');
+      this.triggerSecurityAlert('brute_force_attempt', {
+        count: failedLogins.length,
+        windowMs: this.suspiciousPatterns.failedLogins.windowMs,
+      });
+    }
+  }
+
+  private triggerSecurityAlert(type: string, details: Record<string, unknown>): void {
+    // In production, send to security monitoring service
+    if (import.meta.env.PROD) {
+      fetch('/api/audit/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'security_alert',
+          alertType: type,
+          details,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(() => {
+        // Silently fail
+      });
+    }
+  }
+}
+
+export const securityMonitor = new SecurityMonitor();

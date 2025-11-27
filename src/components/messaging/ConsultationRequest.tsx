@@ -9,17 +9,14 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { 
-  Brain, 
-  Calendar, 
-  Clock,
+import {
+  Brain,
   User,
   Stethoscope,
   Question,
   Star,
   Warning as AlertTriangle,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from "@phosphor-icons/react"
 import { toast } from 'sonner'
 import { useDoctorDirectory } from "@/hooks/useDoctorDirectory"
@@ -234,9 +231,9 @@ export function ConsultationRequest({ onSubmit, trigger }: ConsultationRequestPr
           <div className="space-y-6">
             <div>
               <Label className="text-base font-medium mb-4 block">Consultation Type</Label>
-              <RadioGroup 
-                value={formData.type} 
-                onValueChange={(value: any) => setFormData({ ...formData, type: value })}
+              <RadioGroup
+                value={formData.type}
+                onValueChange={(value: string) => setFormData({ ...formData, type: value })}
               >
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 p-3 border rounded-lg">
