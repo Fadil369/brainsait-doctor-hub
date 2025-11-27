@@ -85,6 +85,34 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     permissions: ['admin:*'],
     mfaEnabled: false,
     mfaRequired: false
+  },
+  // Super Admin - Full access to all features (DEVELOPMENT ONLY - use environment variables in production)
+  'super.admin': {
+    id: 'super-admin-001',
+    username: 'super.admin',
+    email: 'superadmin@brainsait.sa',
+    name: 'Super Administrator',
+    role: 'admin',
+    licenseNumber: 'SA-ADMIN-001',
+    specialty: 'System Administration',
+    password: 'SuperAdmin2024!', // TODO: Move to environment variables for production
+    permissions: ['admin:*'], // Full admin access
+    mfaEnabled: false,
+    mfaRequired: false
+  },
+  // Dr. Fadil - Doctor with super admin privileges (DEVELOPMENT ONLY)
+  'dr.fadil': {
+    id: 'dr-fadil-001',
+    username: 'dr.fadil',
+    email: 'dr.fadil@brainsait.sa',
+    name: 'Dr. Fadil',
+    role: 'doctor',
+    licenseNumber: 'SCFHS-DOC-001',
+    specialty: 'General Practice',
+    password: 'DrFadil2024!', // TODO: Move to environment variables for production
+    permissions: ['admin:*', 'patients:*', 'appointments:*', 'claims:*'], // Full access
+    mfaEnabled: false,
+    mfaRequired: false
   }
 }
 
@@ -370,7 +398,7 @@ export function useAuth() {
 
 // Utility functions for role-based access control
 export const hasPermission = (user: User | null, permission: string): boolean => {
-  if (!user) return false
+  if (!user || !user.permissions) return false
   return user.permissions.includes(permission) || user.permissions.includes('admin:*')
 }
 

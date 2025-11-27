@@ -135,7 +135,7 @@ export {
 // Profile engine
 export {
   ProfileEngine,
-  getProfileEngine,
+  profileEngine,
 } from './profile-engine';
 
 // Profile hooks

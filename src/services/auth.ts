@@ -251,7 +251,7 @@ class AuthService {
       }
 
       return response;
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
         error: 'MFA verification failed',
@@ -283,7 +283,7 @@ class AuthService {
       }
 
       return response;
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
         error: 'Token refresh failed',

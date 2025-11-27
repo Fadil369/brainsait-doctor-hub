@@ -4,12 +4,12 @@
  */
 
 import { Hono } from 'hono';
-import type { Env } from '../index';
+import type { Env, Variables } from '../index';
 import { encrypt, decrypt } from '../lib/encryption';
 import { validateSession } from '../lib/auth';
 import { logAuditEvent } from '../lib/audit';
 
-export const storageRouter = new Hono<{ Bindings: Env }>();
+export const storageRouter = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // Middleware: Require authentication
 storageRouter.use('*', async (c, next) => {

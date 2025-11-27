@@ -63,7 +63,7 @@ const PAGE_TITLES: Record<Page, string> = {
 }
 
 function AppContent() {
-  const { user, isLoading, isAuthenticated } = useAuth()
+  const { isLoading, isAuthenticated } = useAuth()
   const { i18n } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -93,28 +93,13 @@ function AppContent() {
     document.documentElement.lang = i18n.language
   }, [i18n.language])
 
-  // Show loading screen during auth initialization
-  if (isLoading || (!isAuthenticated && !isLoginSuccessful)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Initializing healthcare portal...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Show login page if not authenticated
-  if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={() => setIsLoginSuccessful(true)} />
-  }
-
   // Update document title based on current page
   useEffect(() => {
-    const pageTitle = PAGE_TITLES[currentPage || 'dashboard']
-    document.title = `${pageTitle} | BrainSait Doctor Portal`
-  }, [currentPage])
+    if (isAuthenticated) {
+      const pageTitle = PAGE_TITLES[currentPage || 'dashboard']
+      document.title = `${pageTitle} | BrainSait Doctor Portal`
+    }
+  }, [currentPage, isAuthenticated])
 
   // Close sidebar on escape key
   useEffect(() => {
@@ -151,6 +136,23 @@ function AppContent() {
       setSidebarOpen(false)
     }
   }, [navigate, isMobile])
+
+  // Show loading screen during auth initialization only
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Initializing healthcare portal...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => setIsLoginSuccessful(true)} />
+  }
 
   // Patient Details wrapper to extract ID from route
   const PatientDetailsRoute = () => {
