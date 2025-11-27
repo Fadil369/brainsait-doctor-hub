@@ -202,7 +202,9 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <p className="text-sm font-medium text-center mb-2">Demo Accounts</p>
             <div className="space-y-1 text-xs text-muted-foreground">
-              <p><strong>Doctor:</strong> dr.ahmed / SecurePass2024!</p>
+              <p><strong>🔑 Super Admin:</strong> super.admin / SuperAdmin2024!</p>
+              <p><strong>👨‍⚕️ Dr. Fadil (Full Access):</strong> dr.fadil / DrFadil2024!</p>
+              <p className="border-t pt-1 mt-1"><strong>Doctor:</strong> dr.ahmed / SecurePass2024!</p>
               <p><strong>Specialist:</strong> dr.sarah / SecurePass2024!</p>
               <p><strong>Nurse:</strong> nurse.maryam / SecurePass2024!</p>
               <p><strong>Admin:</strong> admin.hassan / SecurePass2024!</p>

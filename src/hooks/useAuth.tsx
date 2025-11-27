@@ -85,6 +85,72 @@ const MOCK_USERS: Record<string, Omit<User, 'lastLogin'> & { password: string; m
     permissions: ['admin:*'],
     mfaEnabled: false,
     mfaRequired: false
+  },
+  // Super Admin - Full access to all features
+  'super.admin': {
+    id: 'super-admin-001',
+    username: 'super.admin',
+    email: 'superadmin@brainsait.sa',
+    name: 'Super Administrator',
+    role: 'admin',
+    licenseNumber: 'SA-ADMIN-001',
+    specialty: 'System Administration',
+    password: 'SuperAdmin2024!',
+    permissions: [
+      'admin:*',
+      'read:*',
+      'write:*',
+      'delete:*',
+      'manage:users',
+      'manage:roles',
+      'manage:settings',
+      'manage:integrations',
+      'nphies:*',
+      'telemedicine:*',
+      'reports:*',
+      'audit:*',
+      'procurement:*',
+      'delegation:*',
+      'profile:*'
+    ],
+    mfaEnabled: false,
+    mfaRequired: false
+  },
+  // Dr. Fadil - Doctor with super admin privileges
+  'dr.fadil': {
+    id: 'dr-fadil-001',
+    username: 'dr.fadil',
+    email: 'dr.fadil@brainsait.sa',
+    name: 'Dr. Fadil',
+    role: 'doctor',
+    licenseNumber: 'SCFHS-DOC-001',
+    specialty: 'General Practice',
+    password: 'DrFadil2024!',
+    permissions: [
+      'admin:*',
+      'read:*',
+      'write:*',
+      'delete:*',
+      'manage:users',
+      'manage:roles',
+      'manage:settings',
+      'manage:integrations',
+      'nphies:*',
+      'telemedicine:*',
+      'reports:*',
+      'audit:*',
+      'procurement:*',
+      'delegation:*',
+      'profile:*',
+      'patients:*',
+      'appointments:*',
+      'claims:*',
+      'prescriptions:*',
+      'lab:*',
+      'imaging:*'
+    ],
+    mfaEnabled: false,
+    mfaRequired: false
   }
 }
 
